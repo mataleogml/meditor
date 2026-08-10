@@ -1,0 +1,20 @@
+# Local CI — runs the full verify suite before any push reaches GitHub, no
+# cloud minutes spent. Mirrors what the old ubuntu-latest ci.yml ran
+# (typecheck, lint, test, build, check:scaffold) via the existing "verify"
+# script; a non-zero exit here blocks the push.
+npm run verify
+status=$?
+if [ $status -ne 0 ]; then
+  exit $status
+fi
+
+# Best-effort: post a commit status so CI is still visible in the GitHub UI,
+# even though it ran locally. Never blocks the push on failure here — the
+# checks above are the actual gate.
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [ -z "$local_sha" ] && continue
+  GH_TOKEN=$(gh auth token --user mataleogml 2>/dev/null) \
+    gh api -X POST "repos/mataleogml/meditor/statuses/$local_sha" \
+      -f state=success -f context=ci/local -f description="local CI passed" \
+      >/dev/null 2>&1 || true
+done
