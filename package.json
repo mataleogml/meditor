@@ -135,7 +135,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "prepare": "husky",
+    "prepare": "husky && npm run build",
     "check:scaffold": "node scripts/check-scaffold.mjs",
     "verify": "npm run typecheck && npm run lint && npm test && npm run build && npm run check:scaffold"
   },
