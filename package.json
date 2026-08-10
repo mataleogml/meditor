@@ -1,0 +1,205 @@
+{
+  "name": "meditor",
+  "version": "0.1.0",
+  "description": "Modular, markdown-based, AI-buildable site builder + visual editor. Pages are markdown slices; ships a Linear-style WYSIWYG editor with draft/publish, drag-drop, device preview, theming, SEO/AIO. Framework-agnostic core, config-driven.",
+  "keywords": [
+    "cms",
+    "markdown",
+    "site-builder",
+    "editor",
+    "wysiwyg",
+    "nextjs",
+    "react",
+    "slices",
+    "shadcn",
+    "ai"
+  ],
+  "license": "MIT",
+  "private": false,
+  "type": "module",
+  "sideEffects": false,
+  "bin": {
+    "meditor": "./dist/cli.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./i18n": {
+      "types": "./src/i18n.ts",
+      "default": "./src/i18n.ts"
+    },
+    "./proxy": {
+      "types": "./src/proxy.ts",
+      "default": "./src/proxy.ts"
+    },
+    "./api": {
+      "types": "./src/api/index.ts",
+      "default": "./src/api/index.ts"
+    },
+    "./element": {
+      "types": "./src/element.ts",
+      "default": "./src/element.ts"
+    },
+    "./editor": {
+      "types": "./src/editor.ts",
+      "default": "./src/editor.ts"
+    },
+    "./editor/page": {
+      "types": "./src/editor-page.ts",
+      "default": "./src/editor-page.ts"
+    },
+    "./wc": {
+      "types": "./src/wc.tsx",
+      "default": "./src/wc.tsx"
+    },
+    "./seo": {
+      "types": "./src/seo/index.ts",
+      "default": "./src/seo/index.ts"
+    },
+    "./auth/local": {
+      "types": "./src/auth/local.ts",
+      "default": "./src/auth/local.ts"
+    },
+    "./auth/next-auth": {
+      "types": "./src/auth/next-auth.ts",
+      "default": "./src/auth/next-auth.ts"
+    },
+    "./auth/clerk": {
+      "types": "./src/auth/clerk.ts",
+      "default": "./src/auth/clerk.ts"
+    },
+    "./theme.css": "./src/theme.css"
+  },
+  "publishConfig": {
+    "access": "public",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./i18n": {
+        "types": "./dist/i18n.d.ts",
+        "default": "./dist/i18n.js"
+      },
+      "./proxy": {
+        "types": "./dist/proxy.d.ts",
+        "default": "./dist/proxy.js"
+      },
+      "./api": {
+        "types": "./dist/api/index.d.ts",
+        "default": "./dist/api/index.js"
+      },
+      "./element": {
+        "types": "./dist/element.d.ts",
+        "default": "./dist/element.js"
+      },
+      "./editor": {
+        "types": "./dist/editor.d.ts",
+        "default": "./dist/editor.js"
+      },
+      "./editor/page": {
+        "types": "./dist/editor-page.d.ts",
+        "default": "./dist/editor-page.js"
+      },
+      "./wc": {
+        "types": "./dist/wc.d.ts",
+        "default": "./dist/wc.js"
+      },
+      "./seo": {
+        "types": "./dist/seo/index.d.ts",
+        "default": "./dist/seo/index.js"
+      },
+      "./auth/local": {
+        "types": "./dist/auth/local.d.ts",
+        "default": "./dist/auth/local.js"
+      },
+      "./auth/next-auth": {
+        "types": "./dist/auth/next-auth.d.ts",
+        "default": "./dist/auth/next-auth.js"
+      },
+      "./auth/clerk": {
+        "types": "./dist/auth/clerk.d.ts",
+        "default": "./dist/auth/clerk.js"
+      },
+      "./theme.css": "./dist/theme.css"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && node scripts/postbuild.mjs",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "prepare": "husky",
+    "check:scaffold": "node scripts/check-scaffold.mjs",
+    "verify": "npm run typecheck && npm run lint && npm test && npm run build && npm run check:scaffold"
+  },
+  "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "gray-matter": "^4.0.3",
+    "js-yaml": "^4.1.0",
+    "lit": "^3",
+    "lucide-react": "^0.469.0",
+    "sharp": "^0.34.5",
+    "tailwind-merge": "^3.6.0"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
+    "@eslint/js": "^9.18.0",
+    "@next/eslint-plugin-next": "^16.2.12",
+    "@testing-library/jest-dom": "^7.0.0",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.7.0",
+    "eslint": "^9",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "husky": "^9.1.7",
+    "jsdom": "^29.1.1",
+    "lint-staged": "^15.4.3",
+    "next": "^16",
+    "react": "^19",
+    "react-dom": "^19",
+    "server-only": "^0.0.1",
+    "typescript": "^5",
+    "typescript-eslint": "^8.20.0",
+    "vitest": "^4.1.10"
+  },
+  "peerDependencies": {
+    "@clerk/nextjs": ">=5",
+    "next": ">=15",
+    "next-auth": ">=5",
+    "react": ">=19",
+    "react-dom": ">=19"
+  },
+  "peerDependenciesMeta": {
+    "next": {
+      "optional": true
+    },
+    "next-auth": {
+      "optional": true
+    },
+    "@clerk/nextjs": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
+      "optional": true
+    }
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": "eslint --fix"
+  }
+}

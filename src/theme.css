@@ -1,0 +1,82 @@
+/* meditor token contract.
+ *
+ * The editor UI is a plain-CSS port of shadcn/ui (see src/ui/shadcn.ts) and
+ * reads ONLY the variables below. Each falls back to the host's own shadcn
+ * token, then to shadcn's default `neutral` value — the same oklch values
+ * `npx shadcn init` writes. So:
+ *   - a shadcn site: the editor inherits its theme automatically, no config
+ *   - a custom design system (foundation, Atlas, …): override these vars
+ *   - no design tokens at all: stock shadcn neutral
+ *
+ * Adding a variable here is additive: the port resolves each through a fallback
+ * chain, so a host shipping an older/partial copy of this file still works, just
+ * with fewer surfaces themed.
+ *
+ * `.dark` mirrors the mapping; the editor scopes `.dark` (and `color-scheme`) to
+ * its own subtree so it can theme independently of the site around it. */
+:root {
+  --scms-bg: var(--background, oklch(1 0 0));
+  --scms-fg: var(--foreground, oklch(0.145 0 0));
+  --scms-card: var(--card, oklch(1 0 0));
+  --scms-card-fg: var(--card-foreground, oklch(0.145 0 0));
+  --scms-popover: var(--popover, oklch(1 0 0));
+  --scms-popover-fg: var(--popover-foreground, oklch(0.145 0 0));
+  --scms-primary: var(--primary, oklch(0.205 0 0));
+  --scms-primary-fg: var(--primary-foreground, oklch(0.985 0 0));
+  --scms-secondary: var(--secondary, oklch(0.97 0 0));
+  --scms-secondary-fg: var(--secondary-foreground, oklch(0.205 0 0));
+  --scms-muted: var(--muted, oklch(0.97 0 0));
+  --scms-muted-fg: var(--muted-foreground, oklch(0.556 0 0));
+  --scms-accent: var(--accent, oklch(0.97 0 0));
+  --scms-accent-fg: var(--accent-foreground, oklch(0.205 0 0));
+  --scms-destructive: var(--destructive, oklch(0.577 0.245 27.325));
+  --scms-border: var(--border, oklch(0.922 0 0));
+  --scms-input: var(--input, oklch(0.922 0 0));
+  --scms-ring: var(--ring, oklch(0.708 0 0));
+
+  /* The admin frame — shadcn's sidebar tokens. `--scms-app-bg` is the backdrop
+     the content card floats on (SidebarProvider variant="inset"). */
+  --scms-app-bg: var(--sidebar, oklch(0.985 0 0));
+  --scms-sidebar: var(--sidebar, oklch(0.985 0 0));
+  --scms-sidebar-fg: var(--sidebar-foreground, oklch(0.145 0 0));
+  --scms-sidebar-accent: var(--sidebar-accent, oklch(0.97 0 0));
+  --scms-sidebar-accent-fg: var(--sidebar-accent-foreground, oklch(0.205 0 0));
+  --scms-sidebar-border: var(--sidebar-border, oklch(0.922 0 0));
+  --scms-sidebar-ring: var(--sidebar-ring, oklch(0.708 0 0));
+  --scms-sidebar-width: 16rem;
+
+  /* One base radius; the port derives sm/md/lg/xl from it exactly as shadcn's
+     Tailwind theme does. */
+  --scms-radius: var(--radius, 0.625rem);
+}
+
+/* shadcn's own `.dark` values (neutral), with the host's brand kept for
+   primary/ring so a themed site stays recognisable in dark mode. */
+.dark {
+  color-scheme: dark;
+  --scms-bg: oklch(0.145 0 0);
+  --scms-fg: oklch(0.985 0 0);
+  --scms-card: oklch(0.205 0 0);
+  --scms-card-fg: oklch(0.985 0 0);
+  --scms-popover: oklch(0.205 0 0);
+  --scms-popover-fg: oklch(0.985 0 0);
+  --scms-primary: var(--primary, oklch(0.922 0 0));
+  --scms-primary-fg: var(--primary-foreground, oklch(0.205 0 0));
+  --scms-secondary: oklch(0.269 0 0);
+  --scms-secondary-fg: oklch(0.985 0 0);
+  --scms-muted: oklch(0.269 0 0);
+  --scms-muted-fg: oklch(0.708 0 0);
+  --scms-accent: oklch(0.269 0 0);
+  --scms-accent-fg: oklch(0.985 0 0);
+  --scms-destructive: oklch(0.704 0.191 22.216);
+  --scms-border: oklch(1 0 0 / 10%);
+  --scms-input: oklch(1 0 0 / 15%);
+  --scms-ring: var(--ring, oklch(0.556 0 0));
+  --scms-app-bg: oklch(0.205 0 0);
+  --scms-sidebar: oklch(0.205 0 0);
+  --scms-sidebar-fg: oklch(0.985 0 0);
+  --scms-sidebar-accent: oklch(0.269 0 0);
+  --scms-sidebar-accent-fg: oklch(0.985 0 0);
+  --scms-sidebar-border: oklch(1 0 0 / 10%);
+  --scms-sidebar-ring: oklch(0.556 0 0);
+}
