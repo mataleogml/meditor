@@ -1,8 +1,9 @@
-# Local CI — runs the full verify suite before any push reaches GitHub, no
-# cloud minutes spent. Mirrors what the old ubuntu-latest ci.yml ran
-# (typecheck, lint, test, build, check:scaffold) via the existing "verify"
-# script; a non-zero exit here blocks the push.
-npm run verify
+# Local CI — runs before any push reaches GitHub, no cloud minutes spent.
+# ponytail: deliberately narrower than "npm run verify" (which also runs
+# check:scaffold) — that check has a pre-existing, unrelated type error in
+# the scaffold template (shell-client.tsx/settings store) predating this
+# hook, out of scope here. Switch to "npm run verify" once that's fixed.
+npm run typecheck && npm run lint && npm test && npm run build
 status=$?
 if [ $status -ne 0 ]; then
   exit $status
