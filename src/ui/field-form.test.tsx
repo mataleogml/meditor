@@ -11,7 +11,7 @@ describe("FieldForm — image control", () => {
     const slice: Slice = { slice: "bigStat", image: "/img/photo.webp" };
     const schema: SliceSchema = { image: { type: "image" } };
     render(<FieldForm slice={slice} schema={schema} onChange={() => {}} />);
-    expect(screen.getByDisplayValue("/img/photo.webp")).toBeInTheDocument();
+    expect(screen.getByRole("presentation")).toHaveAttribute("src", "/img/photo.webp");
     expect(screen.queryByPlaceholderText("Alt text")).not.toBeInTheDocument();
   });
 
@@ -21,7 +21,7 @@ describe("FieldForm — image control", () => {
     const schema: SliceSchema = { media: { type: "image" } };
     render(<FieldForm slice={slice} schema={schema} onChange={onChange} />);
 
-    expect(screen.getByDisplayValue("/img/a.webp")).toBeInTheDocument();
+    expect(screen.getByRole("presentation")).toHaveAttribute("src", "/img/a.webp");
     const altInput = screen.getByPlaceholderText("Alt text");
     expect(altInput).toHaveValue("A description");
 
@@ -57,7 +57,7 @@ describe("FieldForm — image control", () => {
     const slice: Slice = { slice: "splitFeature", media: { src: "/img/a.webp", alt: "A" } };
     const schema: SliceSchema = { media: { type: "media" } };
     render(<FieldForm slice={slice} schema={schema} onChange={onChange} />);
-    expect(screen.getByDisplayValue("/img/a.webp")).toBeInTheDocument();
+    expect(screen.getByRole("presentation")).toHaveAttribute("src", "/img/a.webp");
     expect(screen.getByPlaceholderText("Alt text")).toHaveValue("A");
   });
 });

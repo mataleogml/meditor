@@ -16,10 +16,12 @@ const asset: MediaAsset = {
 };
 
 describe("ImagePickerField", () => {
-  it("degrades to a plain text input with no Browse button when media is absent", () => {
+  it("with a value set, shows an image preview and a Remove button — even with no media library", () => {
     render(<ImagePickerField value="/img/existing.webp" onChange={() => {}} />);
-    expect(screen.getByDisplayValue("/img/existing.webp")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /browse library/i })).not.toBeInTheDocument();
+    expect(screen.getByRole("presentation")).toHaveAttribute("src", "/img/existing.webp");
+    expect(screen.getByRole("button", { name: "Remove" })).toBeInTheDocument();
+    // no media library configured: no way to open a library, so no Replace
+    expect(screen.queryByRole("button", { name: /replace/i })).not.toBeInTheDocument();
   });
 
   it("typing in the path input still works without a media library configured", async () => {
@@ -29,13 +31,13 @@ describe("ImagePickerField", () => {
     expect(onChange).toHaveBeenCalledWith("x");
   });
 
-  it("Browse library loads the list and selecting an asset commits its url", async () => {
+  it("Add image loads the list and selecting an asset commits its url", async () => {
     const onChange = vi.fn();
     const list = vi.fn().mockResolvedValue([asset]);
     const media = { list, delete: vi.fn(), uploadPath: "/editor/media/upload" };
 
     render(<ImagePickerField value="" onChange={onChange} media={media} />);
-    await userEvent.click(screen.getByRole("button", { name: /browse library/i }));
+    await userEvent.click(screen.getByRole("button", { name: /add image/i }));
     await waitFor(() => expect(list).toHaveBeenCalled());
 
     const pick = await screen.findByRole("button", { name: /photo\.webp/i });
@@ -44,10 +46,10 @@ describe("ImagePickerField", () => {
     expect(onChange).toHaveBeenCalledWith(asset.url);
   });
 
-  it("Clear resets the value to empty", async () => {
+  it("Remove resets the value to empty", async () => {
     const onChange = vi.fn();
     render(<ImagePickerField value="/img/existing.webp" onChange={onChange} />);
-    await userEvent.click(screen.getByRole("button", { name: /clear/i }));
+    await userEvent.click(screen.getByRole("button", { name: "Remove" }));
     expect(onChange).toHaveBeenCalledWith("");
   });
 });
