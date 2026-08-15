@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { createMarkdownAdapter } from "./markdown-adapter";
-import { makeCollectionActions, buildCollectionActions } from "./collection";
+import { makeCollectionActions, buildCollectionActions, listCollectionRecords } from "./collection";
 import type { CmsConfig } from "./types";
 import type { CollectionSection, Section } from "./sections";
 
@@ -92,5 +92,46 @@ describe("buildCollectionActions", () => {
     ]);
     const built = buildCollectionActions(config);
     expect(Object.keys(built)).toEqual(["authors"]);
+  });
+});
+
+describe("listCollectionRecords", () => {
+  it("returns slug/meta/body/hasDraft for every published record", async () => {
+    const authorsDir = path.join(dir, "authors");
+    const config = makeConfig();
+    const section = { ...authorsSection, dir: authorsDir };
+    const actions = makeCollectionActions(config, section);
+
+    const slug = await actions.createPage("Gabriel Lam");
+    await actions.saveDraft(slug, {
+      meta: { name: "Gabriel Lam", role: "Editor" },
+      slices: [],
+      body: "Gabriel writes about markdown editors.",
+    });
+    await actions.publish(slug);
+
+    const second = await actions.createPage("Ada Lovelace");
+    // Draft only, never published: the row still reflects the last PUBLISHED
+    // content (same draft/published split store.listPages already makes) —
+    // hasDraft is the separate signal that unpublished work is pending.
+    await actions.saveDraft(second, { meta: { name: "Ada Lovelace" }, slices: [], body: "Draft bio." });
+
+    const records = listCollectionRecords(config, section);
+    expect(records).toEqual([
+      { slug: "ada-lovelace", meta: { title: "Ada Lovelace" }, body: "\n", hasDraft: true, locale: undefined },
+      {
+        slug: "gabriel-lam",
+        meta: { name: "Gabriel Lam", role: "Editor" },
+        body: "Gabriel writes about markdown editors.\n",
+        hasDraft: false,
+        locale: undefined,
+      },
+    ]);
+  });
+
+  it("returns an empty list for a collection with no records yet", () => {
+    const config = makeConfig();
+    const section = { ...authorsSection, dir: path.join(dir, "authors") };
+    expect(listCollectionRecords(config, section)).toEqual([]);
   });
 });

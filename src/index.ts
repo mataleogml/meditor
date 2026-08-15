@@ -4,6 +4,7 @@ export type {
   PageContent,
   LocalizedPage,
   PageInfo,
+  CollectionRecordInfo,
   ContentAdapter,
   CmsConfig,
   FieldDef,
@@ -65,4 +66,4 @@ export {
   type SettingsAdapter,
   type SettingsStore,
 } from "./settings";
-export { makeCollectionActions, buildCollectionActions } from "./collection";
+export { makeCollectionActions, makeCollectionAdapter, buildCollectionActions, listCollectionRecords } from "./collection";
