@@ -1,9 +1,11 @@
 import { makeActions } from "../actions";
 import { resolveAuth } from "../auth-adapter";
+import { buildCollectionActions, listCollectionRecords, makeCollectionAdapter } from "../collection";
 import { handleMediaUpload } from "../media";
+import { resolveSections, type CollectionSection } from "../sections";
 import { createSettingsStore } from "../settings";
-import { createStore } from "../store";
-import type { CmsConfig, PageContent } from "../types";
+import { createStore, type ContentStore } from "../store";
+import type { CmsConfig, ContentAdapter, PageContent } from "../types";
 import type { SiteSettingsBootstrap, SiteSettingsRuntime } from "../settings";
 
 /**
@@ -32,6 +34,13 @@ import type { SiteSettingsBootstrap, SiteSettingsRuntime } from "../settings";
  * DELETE /pages/:slug                        delete page
  * POST   /pages/:slug/translations           create           { toLocale }
  * DELETE /pages/:slug/translations/:locale   delete translation
+ * GET    /collections/:id                    list records     (?locale=) -> { records: CollectionRecordInfo[] }
+ * GET    /collections/:id/:slug              draft ?? published (?locale=)
+ * POST   /collections/:id                    create           { title, locale? } -> { slug }
+ * PUT    /collections/:id/:slug/draft        save draft       { page, baseVersion?, locale? }
+ * DELETE /collections/:id/:slug/draft        discard draft
+ * POST   /collections/:id/:slug/publish      publish          { baseVersion?, locale? }
+ * DELETE /collections/:id/:slug              delete record
  * GET    /media                              list
  * POST   /media                              upload (multipart/form-data, field "file")
  * DELETE /media/:id                          delete
@@ -61,7 +70,7 @@ export interface MeditorApiOptions {
   allowedOrigins?: string[];
 }
 
-const RESOURCES = ["pages", "media", "settings"] as const;
+const RESOURCES = ["pages", "media", "settings", "collections"] as const;
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
 function json(body: unknown, status = 200): Response {
@@ -122,6 +131,24 @@ export function createMeditorApi(config: CmsConfig, options: MeditorApiOptions =
   const auth = resolveAuth(config);
   const allowed = options.allowedOrigins ?? [];
 
+  // One PageActions per collection (writes) plus this route layer's own
+  // adapter/store per collection (reads) — the same actions/store split the
+  // Pages resource makes above, since PageActions has no read method (see
+  // actions.ts) any more than makeActions' internal store is exposed for Pages.
+  const collectionSections = new Map<string, CollectionSection>(
+    resolveSections(config)
+      .filter((s) => s.kind === "collection")
+      .map((s) => [s.id, s.raw as CollectionSection])
+  );
+  const collectionActions = buildCollectionActions(config);
+  const collectionAdapters = new Map<string, ContentAdapter>();
+  const collectionStores = new Map<string, ContentStore>();
+  for (const [id, section] of collectionSections) {
+    const adapter = makeCollectionAdapter(config, section);
+    collectionAdapters.set(id, adapter);
+    collectionStores.set(id, createStore(adapter));
+  }
+
   async function handler(request: Request): Promise<Response> {
     if (!SAFE_METHODS.has(request.method) && !sameOrigin(request, allowed)) {
       return json({ error: "Cross-origin request refused" }, 403);
@@ -136,6 +163,7 @@ export function createMeditorApi(config: CmsConfig, options: MeditorApiOptions =
       if (resource === "pages") return await pages(request, method, rest, locale);
       if (resource === "media") return await media(request, method, rest);
       if (resource === "settings") return await settingsRoutes(request, method, rest, locale);
+      if (resource === "collections") return await collections(request, method, rest, locale);
       return json({ error: "Not found" }, 404);
     } catch (e) {
       if (isUnauthorized(e)) return json({ error: "Unauthorized" }, 403);
@@ -229,6 +257,74 @@ export function createMeditorApi(config: CmsConfig, options: MeditorApiOptions =
         await actions.deleteTranslation(slug, subId);
         return json({ ok: true });
       }
+    }
+
+    return json({ error: "Not found" }, 404);
+  }
+
+  /** `rest` is `[id, slug?, sub?]` — `id` is the resolved section id (see
+   *  resolveSections), never confusable with a record's own `slug`/`sub`:
+   *  `segments()` matches "collections" itself before this function ever sees
+   *  the path, so a record whose slug happens to be the literal string
+   *  "pages"/"media"/"settings" (or even "collections") still lands as `slug`
+   *  here, not as a top-level resource (see routes.test.ts). */
+  async function collections(request: Request, method: string, rest: string[], locale?: string): Promise<Response> {
+    const [id, slug, sub] = rest;
+    const section = collectionSections.get(id);
+    const actions = collectionActions[id];
+    if (!section || !actions) return json({ error: "Not found" }, 404);
+
+    if (!slug) {
+      if (method === "GET") {
+        const denied = await requireRead();
+        return denied ?? json({ records: listCollectionRecords(config, section, locale) });
+      }
+      if (method === "POST") {
+        const { title } = await body<{ title?: string }>(request);
+        if (!title) return json({ error: "title is required" }, 400);
+        return json({ slug: await actions.createPage(title, locale) }, 201);
+      }
+      return json({ error: "Method not allowed" }, 405);
+    }
+
+    if (!sub) {
+      if (method === "GET") {
+        const denied = await requireRead();
+        if (denied) return denied;
+        const adapter = collectionAdapters.get(id)!;
+        if (!adapter.exists(slug, adapter.defaultLocale)) return json({ error: "Not found" }, 404);
+        const collectionStore = collectionStores.get(id)!;
+        const draft = collectionStore.getDraft(slug, locale);
+        const published = collectionStore.getPublished(slug, locale);
+        return json({
+          page: draft ?? published,
+          version: collectionStore.currentVersion(slug, locale),
+          hasDraft: Boolean(draft),
+        });
+      }
+      if (method === "DELETE") {
+        await actions.deletePage(slug);
+        return json({ ok: true });
+      }
+      return json({ error: "Method not allowed" }, 405);
+    }
+
+    if (sub === "draft") {
+      if (method === "PUT") {
+        const { page, baseVersion } = await body<{ page?: PageContent; baseVersion?: string }>(request);
+        if (!page) return json({ error: "page is required" }, 400);
+        return saveResult(await actions.saveDraft(slug, page, baseVersion, locale));
+      }
+      if (method === "DELETE") {
+        await actions.discardDraft(slug, locale);
+        return json({ ok: true });
+      }
+      return json({ error: "Method not allowed" }, 405);
+    }
+
+    if (sub === "publish" && method === "POST") {
+      const { baseVersion } = await body<{ baseVersion?: string }>(request);
+      return saveResult(await actions.publish(slug, baseVersion, locale));
     }
 
     return json({ error: "Not found" }, 404);

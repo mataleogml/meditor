@@ -233,6 +233,102 @@ describe("duplicate", () => {
   });
 });
 
+describe("collections resource", () => {
+  let authorsDir: string;
+  let collectionsApi: ReturnType<typeof createMeditorApi>;
+
+  function makeCollectionsConfig(): CmsConfig {
+    return {
+      ...makeConfig(),
+      sections: [
+        { kind: "pages", label: "Pages" },
+        { kind: "collection", id: "authors", label: "Authors", dir: authorsDir, schema: { name: { type: "text" } } },
+      ],
+    };
+  }
+
+  beforeEach(() => {
+    // Sibling of `dir` (the Pages content dir) so the overlap guard doesn't fire.
+    authorsDir = fs.mkdtempSync(path.join(os.tmpdir(), "meditor-authors-"));
+    collectionsApi = createMeditorApi(makeCollectionsConfig(), { basePath: BASE });
+  });
+
+  afterEach(() => {
+    fs.rmSync(authorsDir, { recursive: true, force: true });
+  });
+
+  it("lists, creates, saves a draft, publishes, reads and deletes a record", async () => {
+    const created = await collectionsApi.handler(jsonReq("POST", "/collections/authors", { title: "Gabriel Lam" }));
+    expect(created.status).toBe(201);
+    const { slug } = await created.json();
+    expect(slug).toBe("gabriel-lam");
+
+    const saved = await collectionsApi.handler(
+      jsonReq("PUT", `/collections/authors/${slug}/draft`, {
+        page: { meta: { name: "Gabriel Lam" }, slices: [], body: "Bio." },
+      })
+    );
+    expect(saved.status).toBe(200);
+    const { version } = await saved.json();
+
+    const published = await collectionsApi.handler(
+      jsonReq("POST", `/collections/authors/${slug}/publish`, { baseVersion: version })
+    );
+    expect(published.status).toBe(200);
+
+    const list = await collectionsApi.handler(req("GET", "/collections/authors"));
+    expect(list.status).toBe(200);
+    const { records } = await list.json();
+    expect(records).toEqual([{ slug, meta: { name: "Gabriel Lam" }, body: "Bio.\n", hasDraft: false }]);
+
+    const one = await collectionsApi.handler(req("GET", `/collections/authors/${slug}`));
+    expect(one.status).toBe(200);
+    const oneBody = await one.json();
+    expect(oneBody).toMatchObject({ hasDraft: false });
+    expect(oneBody.page.meta.name).toBe("Gabriel Lam");
+
+    const deleted = await collectionsApi.handler(req("DELETE", `/collections/authors/${slug}`));
+    expect(deleted.status).toBe(200);
+    expect((await collectionsApi.handler(req("GET", `/collections/authors/${slug}`))).status).toBe(404);
+  });
+
+  it("discards a draft", async () => {
+    const { slug } = await (
+      await collectionsApi.handler(jsonReq("POST", "/collections/authors", { title: "Ada" }))
+    ).json();
+    await collectionsApi.handler(
+      jsonReq("PUT", `/collections/authors/${slug}/draft`, { page: { meta: { name: "Ada" }, slices: [], body: "x" } })
+    );
+    expect((await collectionsApi.handler(req("DELETE", `/collections/authors/${slug}/draft`))).status).toBe(200);
+    const one = await (await collectionsApi.handler(req("GET", `/collections/authors/${slug}`))).json();
+    expect(one.hasDraft).toBe(false);
+  });
+
+  it("404s an unknown collection id, and a resolved id that isn't a collection", async () => {
+    expect((await collectionsApi.handler(req("GET", "/collections/nope"))).status).toBe(404);
+    // "pages" is a real resolved section id here (kind: "pages"), not a collection.
+    expect((await collectionsApi.handler(req("GET", "/collections/pages"))).status).toBe(404);
+  });
+
+  it("refuses a cross-origin write", async () => {
+    const write = await collectionsApi.handler(
+      req("PUT", "/collections/authors/gabriel-lam/draft", { headers: { origin: "https://evil.test" }, body: "{}" })
+    );
+    expect(write.status).toBe(403);
+  });
+
+  // segments() locates the resource by finding the first path segment that's a
+  // known resource name — a record slug that happens to equal one ("pages"
+  // here) must not get mistaken for the /pages resource, since "collections"
+  // itself is always the leftmost match in this path.
+  it("is not confused by a record slug equal to a resource name", async () => {
+    await collectionsApi.handler(jsonReq("POST", "/collections/authors", { title: "Pages" })); // slug: "pages"
+    const one = await collectionsApi.handler(req("GET", "/collections/authors/pages"));
+    expect(one.status).toBe(200);
+    expect((await one.json()).page.meta.title).toBe("Pages");
+  });
+});
+
 describe("createMeditorClient over the handler", () => {
   /** Wires the client straight to the handler — no network, but the full
    *  serialize → route → deserialize path, which is what would actually break. */
