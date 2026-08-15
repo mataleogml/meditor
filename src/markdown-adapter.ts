@@ -20,6 +20,16 @@ export type MarkdownAdapterOptions = {
   defaultLocale?: string;
   /** Draft subdirectory name (default ".drafts"). */
   draftSubdir?: string;
+  /** Whether `listSlugs` only counts files that already carry a slice array
+   *  under `frontmatterKey` (default true).
+   *
+   *  That filter is a Pages-section heuristic: the Pages dir is shared with
+   *  non-page markdown (site.md, legal bodies), and carrying a slice array is
+   *  what distinguishes an editable page without a hardcoded exclude list. A
+   *  *collection* dir has no such mixture — every `.md` in it is a record, and
+   *  records are frontmatter + prose that may legitimately have no slices at
+   *  all — so collections set this to false (see makeCollectionAdapter). */
+  requireSliceArray?: boolean;
 };
 
 /**
@@ -41,6 +51,7 @@ export function createMarkdownAdapter({
   defaultLocale = "en",
   locales = [defaultLocale],
   draftSubdir = ".drafts",
+  requireSliceArray = true,
 }: MarkdownAdapterOptions): ContentAdapter {
   // Slugs flow in from client actions and become filesystem paths — reject
   // anything that isn't a plain slug so "../" can't escape the content dir.
@@ -96,8 +107,13 @@ export function createMarkdownAdapter({
         .filter((e) => e.isFile() && e.name.endsWith(".md"))
         .map((e) => e.name.replace(/\.md$/, ""))
         // Only pages that actually carry a slice array — skips site.md, legal
-        // bodies, etc. without a hardcoded exclude list.
-        .filter((slug) => Array.isArray(matter(fs.readFileSync(pageFile(slug, locale), "utf8")).data[frontmatterKey]))
+        // bodies, etc. without a hardcoded exclude list. Collections opt out:
+        // every .md in a collection dir is a record, slices or not.
+        .filter(
+          (slug) =>
+            !requireSliceArray ||
+            Array.isArray(matter(fs.readFileSync(pageFile(slug, locale), "utf8")).data[frontmatterKey])
+        )
         .sort((a, b) => a.localeCompare(b));
     },
 

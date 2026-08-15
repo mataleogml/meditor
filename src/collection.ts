@@ -23,6 +23,10 @@ export function makeCollectionAdapter(config: CmsConfig, section: CollectionSect
     contentDir,
     locales: config.adapter.locales,
     defaultLocale: config.adapter.defaultLocale,
+    // Every .md in a collection dir is a record. The Pages default filters to
+    // files carrying a slice array (to skip site.md and friends), which would
+    // hide every frontmatter-plus-prose record a collection exists to hold.
+    requireSliceArray: false,
   });
 }
 

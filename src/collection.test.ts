@@ -129,6 +129,32 @@ describe("listCollectionRecords", () => {
     ]);
   });
 
+  // Records authored outside the CMS — an existing content directory adopted
+  // by a collection — carry no `slices:` key at all. The Pages listSlugs filter
+  // treats "carries a slice array" as "is a page", which would hide every one
+  // of them and report the collection as empty.
+  it("lists hand-authored records that carry no slices key", () => {
+    const authorsDir = path.join(dir, "authors");
+    fs.mkdirSync(authorsDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(authorsDir, "ada-lovelace.md"),
+      '---\nname: "Ada Lovelace"\nrole: "Mathematician"\n---\n\nWrote the first algorithm.\n'
+    );
+
+    const config = makeConfig();
+    const section = { ...authorsSection, dir: authorsDir };
+
+    expect(listCollectionRecords(config, section)).toEqual([
+      {
+        slug: "ada-lovelace",
+        meta: { name: "Ada Lovelace", role: "Mathematician" },
+        body: "\nWrote the first algorithm.\n",
+        hasDraft: false,
+        locale: undefined,
+      },
+    ]);
+  });
+
   it("returns an empty list for a collection with no records yet", () => {
     const config = makeConfig();
     const section = { ...authorsSection, dir: path.join(dir, "authors") };
