@@ -327,6 +327,30 @@ describe("collections resource", () => {
     expect(one.status).toBe(200);
     expect((await one.json()).page.meta.title).toBe("Pages");
   });
+
+  it("drives the same routes through createMeditorClient's collection(id) + listCollectionRecords", async () => {
+    const client = createMeditorClient({
+      baseUrl: `https://example.test${BASE}`,
+      fetch: ((input: RequestInfo | URL, init?: RequestInit) =>
+        collectionsApi.handler(new Request(input as string, init))) as typeof globalThis.fetch,
+    });
+
+    const authors = client.collection("authors");
+    const slug = await authors.createPage("Gabriel Lam");
+    const result = await authors.saveDraft(slug, { meta: { name: "Gabriel Lam" }, slices: [], body: "Bio." });
+    expect(result.ok).toBe(true);
+    await authors.publish(slug);
+
+    const { page, hasDraft } = await authors.getRecord(slug);
+    expect(hasDraft).toBe(false);
+    expect(page.body).toContain("Bio.");
+
+    const records = await client.listCollectionRecords("authors");
+    expect(records).toEqual([{ slug, meta: { name: "Gabriel Lam" }, body: "Bio.\n", hasDraft: false }]);
+
+    await authors.deletePage(slug);
+    expect(await client.listCollectionRecords("authors")).toEqual([]);
+  });
 });
 
 describe("createMeditorClient over the handler", () => {

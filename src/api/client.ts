@@ -1,5 +1,5 @@
 import type { PageActions, RenameResult, SaveResult } from "../actions";
-import type { MediaAsset, PageContent, PageInfo } from "../types";
+import type { CollectionRecordInfo, MediaAsset, PageContent, PageInfo } from "../types";
 import type { SiteSettings, SiteSettingsBootstrap, SiteSettingsRuntime } from "../settings";
 
 /**
@@ -36,6 +36,13 @@ export interface MeditorClient extends PageActions {
   saveSettingsDraft(next: SiteSettingsRuntime, baseVersion?: string, locale?: string): Promise<SaveResult>;
   publishSettings(baseVersion?: string, locale?: string): Promise<SaveResult>;
   writeBootstrap(patch: Partial<SiteSettingsBootstrap>): Promise<void>;
+  listCollectionRecords(sectionId: string, locale?: string): Promise<CollectionRecordInfo[]>;
+  /** A PageActions for one collection section, HTTP-backed the same way the
+   *  top-level Pages methods are — structurally satisfies PageActions so it
+   *  can be dropped straight into `SectionCtx.collections[id]`. */
+  collection(sectionId: string): PageActions & {
+    getRecord(slug: string, locale?: string): Promise<{ page: PageContent; version: string | null; hasDraft: boolean }>;
+  };
 }
 
 class MeditorApiError extends Error {
@@ -81,24 +88,38 @@ export function createMeditorClient(options: MeditorClientOptions): MeditorClien
   const send = <T = SaveResult>(path: string, method: string, payload?: unknown) =>
     call<T>(path, { method, body: payload === undefined ? undefined : JSON.stringify(payload) });
 
-  return {
-    // ---- PageActions (identical signatures to makeActions') -----------------
+  // The 5 PageActions methods that map 1:1 onto a "/<base>[/:slug]" resource —
+  // shared between the top-level Pages methods (`base = "/pages"`) and
+  // `collection(id)` (`base = "/collections/:id"`), same routes.ts conventions
+  // either way. createTranslation/deleteTranslation aren't here: Pages has real
+  // routes for them, collections (see collection()) don't.
+  const pageActionsOver = (
+    base: string
+  ): Pick<PageActions, "saveDraft" | "discardDraft" | "publish" | "createPage" | "deletePage"> => ({
     async saveDraft(slug, page, baseVersion, locale) {
-      return send(`/pages/${encodeURIComponent(slug)}/draft${query(locale)}`, "PUT", { page, baseVersion });
+      return send(`${base}/${encodeURIComponent(slug)}/draft${query(locale)}`, "PUT", { page, baseVersion });
     },
     async discardDraft(slug, locale) {
-      await call(`/pages/${encodeURIComponent(slug)}/draft${query(locale)}`, { method: "DELETE" });
+      await call(`${base}/${encodeURIComponent(slug)}/draft${query(locale)}`, { method: "DELETE" });
     },
     async publish(slug, baseVersion, locale) {
-      return send(`/pages/${encodeURIComponent(slug)}/publish${query(locale)}`, "POST", { baseVersion });
+      return send(`${base}/${encodeURIComponent(slug)}/publish${query(locale)}`, "POST", { baseVersion });
     },
     async createPage(title, locale) {
-      const { slug } = await call<{ slug: string }>(`/pages${query(locale)}`, {
+      const { slug } = await call<{ slug: string }>(`${base}${query(locale)}`, {
         method: "POST",
         body: JSON.stringify({ title }),
       });
       return slug;
     },
+    async deletePage(slug) {
+      await call(`${base}/${encodeURIComponent(slug)}`, { method: "DELETE" });
+    },
+  });
+
+  return {
+    // ---- PageActions (identical signatures to makeActions') -----------------
+    ...pageActionsOver("/pages"),
     async renamePage(slug, newSlug) {
       return send<RenameResult>(`/pages/${encodeURIComponent(slug)}/rename`, "POST", { newSlug });
     },
@@ -115,13 +136,37 @@ export function createMeditorClient(options: MeditorClientOptions): MeditorClien
         body: JSON.stringify({ toLocale }),
       });
     },
-    async deletePage(slug) {
-      await call(`/pages/${encodeURIComponent(slug)}`, { method: "DELETE" });
-    },
     async deleteTranslation(slug, locale) {
       await call(`/pages/${encodeURIComponent(slug)}/translations/${encodeURIComponent(locale)}`, {
         method: "DELETE",
       });
+    },
+
+    // ---- collections --------------------------------------------------------
+    async listCollectionRecords(sectionId, locale) {
+      const { records } = await call<{ records: CollectionRecordInfo[] }>(
+        `/collections/${encodeURIComponent(sectionId)}${query(locale)}`
+      );
+      return records;
+    },
+    collection(sectionId) {
+      const base = `/collections/${encodeURIComponent(sectionId)}`;
+      return {
+        ...pageActionsOver(base),
+        // ponytail: collection records aren't locale-switcher aware yet (see
+        // CollectionRecordInfo's doc comment) and routes.ts deliberately has
+        // no /translations routes for them — these throw rather than silently
+        // no-op. Add the routes + real implementations if a host needs it.
+        async createTranslation() {
+          throw new Error("meditor: collection translations are not supported over HTTP");
+        },
+        async deleteTranslation() {
+          throw new Error("meditor: collection translations are not supported over HTTP");
+        },
+        async getRecord(slug, locale) {
+          return call(`${base}/${encodeURIComponent(slug)}${query(locale)}`);
+        },
+      };
     },
 
     // ---- reads + media + settings ------------------------------------------
