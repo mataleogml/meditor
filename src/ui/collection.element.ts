@@ -37,6 +37,7 @@ export class MeditorCollection extends LitElement {
     _mode: { state: true },
     _selectedSlug: { state: true },
     _meta: { state: true },
+    _body: { state: true },
     _newTitle: { state: true },
     _dirty: { state: true },
     _busy: { state: true },
@@ -50,6 +51,11 @@ export class MeditorCollection extends LitElement {
   declare _mode: Mode;
   declare _selectedSlug?: string;
   declare _meta: Record<string, unknown>;
+  /** The record's markdown body, captured verbatim from `records` on
+   *  `_openEdit` and threaded back through on `_save` — the form never
+   *  edits it (the schema covers only frontmatter), so this is pure
+   *  passthrough, not user input (see `_save`). */
+  declare _body: string;
   declare _newTitle: string;
   declare _dirty: boolean;
   declare _busy: boolean;
@@ -60,6 +66,7 @@ export class MeditorCollection extends LitElement {
     this.records = [];
     this._mode = "list";
     this._meta = {};
+    this._body = "";
     this._newTitle = "";
     this._dirty = false;
     this._busy = false;
@@ -179,6 +186,8 @@ export class MeditorCollection extends LitElement {
       // keyed on "name") with a follow-up write — see class doc.
       const { primary } = resolveListColumns(this.section.schema, this.section.titleField);
       if (primary) {
+        // body: "" is correct here (unlike _save's captured this._body) — a
+        // brand-new record has no prose body yet to preserve.
         await this.actions.saveDraft(slug, { meta: { [primary]: value }, slices: [], body: "" }, undefined, this.locale);
         await this.actions.publish(slug, undefined, this.locale);
       }
@@ -195,6 +204,7 @@ export class MeditorCollection extends LitElement {
     this._mode = "edit";
     this._selectedSlug = slug;
     this._meta = record.meta;
+    this._body = record.body;
     this._dirty = false;
     this._status = "";
   }
@@ -220,7 +230,7 @@ export class MeditorCollection extends LitElement {
     this._busy = true;
     this._status = "Saving…";
     try {
-      await this.actions.saveDraft(slug, { meta: this._meta, slices: [], body: "" }, undefined, this.locale);
+      await this.actions.saveDraft(slug, { meta: this._meta, slices: [], body: this._body }, undefined, this.locale);
       await this.actions.publish(slug, undefined, this.locale);
       window.location.reload();
     } catch (e) {

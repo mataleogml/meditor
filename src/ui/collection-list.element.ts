@@ -3,21 +3,12 @@ import type { SliceSchema } from "../types";
 import { icon, iconPencilLine, iconTrash2 } from "./icons";
 import { primitiveStyles } from "./styles";
 
-/**
- * One row of a collection's list view. A record IS a `PageContent` with
- * `slices: []` (see spec §3) — `meta` is the schema-shaped prop bag,
- * `hasDraft`/`locale` mirror `PageInfo`'s draft/translation status but are
- * kept as a local type (not `PageInfo`) since a collection record's display
- * value comes from an arbitrary schema key, not a fixed `title` field.
- */
-export interface CollectionRecordInfo {
-  slug: string;
-  meta: Record<string, unknown>;
-  hasDraft: boolean;
-  /** v1 gap (spec §3): collections aren't locale-switcher aware; this is an
-   *  opportunistic display-only badge when a host happens to set it. */
-  locale?: string;
-}
+// Canonical definition moved to ../types (server-safe code, e.g. collection.ts's
+// listCollectionRecords, needs it and must not pull in this module's `lit`
+// import + `customElements.define` side effect). Re-exported here so existing
+// importers of this file are unaffected.
+export type { CollectionRecordInfo } from "../types";
+import type { CollectionRecordInfo } from "../types";
 
 /** "titleField" -> "Title Field"; "photo_url" -> "Photo Url". */
 function titleCase(key: string): string {

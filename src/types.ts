@@ -24,6 +24,27 @@ export type LocalizedPage = PageContent & { locale: string; isFallback: boolean 
  *  in (translation status); `hasDraft` is for the currently-listed locale. */
 export type PageInfo = { slug: string; title: string; hasDraft: boolean; locales: string[] };
 
+/** One row of a collection's list view. A record IS a `PageContent` with
+ *  `slices: []` (see collection.ts) — `meta` is the schema-shaped prop bag,
+ *  `hasDraft`/`locale` mirror `PageInfo`'s draft/translation status but are
+ *  kept as a local type (not `PageInfo`) since a collection record's display
+ *  value comes from an arbitrary schema key, not a fixed `title` field.
+ *  Canonical home for this type — re-exported from `./ui/collection-list.element`
+ *  for existing importers. */
+export type CollectionRecordInfo = {
+  slug: string;
+  meta: Record<string, unknown>;
+  /** The record's markdown body. Required, not optional: an optional field
+   *  would let a host omit it, and a UI round-tripping this through a save
+   *  (see `MeditorCollection._save`) would then silently blank the file's
+   *  body — the exact bug this field exists to prevent. */
+  body: string;
+  hasDraft: boolean;
+  /** v1 gap: collections aren't locale-switcher aware; this is an
+   *  opportunistic display-only badge when a host happens to set it. */
+  locale?: string;
+};
+
 /** Editor hint for a single prop. Without one, the control is auto-detected
  *  from the value (string→input, number→number, boolean→checkbox, object→YAML).
  *  With one, `type` (and `options` for "select") pick the control explicitly —
